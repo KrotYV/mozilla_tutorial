@@ -1,19 +1,17 @@
-from django.shortcuts import render
-
-from .models import Book, Author, BookInstance
-
-from django.views import generic
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth.mixins import PermissionRequiredMixin
-from django.shortcuts import get_object_or_404
-from django.http import HttpResponseRedirect
-from django.urls import reverse
-
 import datetime
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.http import HttpResponseRedirect, JsonResponse
+from django.shortcuts import get_object_or_404, render
+from django.template.loader import render_to_string
+from django.urls import reverse
+from django.views import generic
 
-from .forms import RenewBookForm
+from .forms import ContactForm, RenewBookForm
+from .models import Author, Book, BookInstance
+from .tasks import contact_us_send_mail
 
 
 def index(request):
@@ -39,14 +37,6 @@ def index(request):
         context={'num_books': num_books, 'num_instances': num_instances,
                  'num_instances_available': num_instances_available, 'num_authors': num_authors,
                  'num_visits': num_visits},  # num_visits appended
-    )
-
-    # Отрисовка HTML-шаблона index.html с данными внутри
-    # переменной контекста context
-    return render(
-        request,
-        'index.html',
-        context={'num_books': num_books, 'num_instances': num_instances, 'num_instances_available': num_instances_available, 'num_authors': num_authors},
     )
 
 
@@ -129,3 +119,22 @@ def renew_book_librarian(request, pk):
     }
 
     return render(request, 'catalog/book_renew_librarian.html', context)
+
+
+def contact_form(request):
+    data = dict()
+    if request.method == 'POST':
+        form = ContactForm(request.POST)
+        if form.is_valid():
+            subject = form.cleaned_data['subject']
+            email = form.cleaned_data['email']
+            message = form.cleaned_data['message']
+            data['form_is_valid'] = True
+            contact_us_send_mail.delay(subject, message, email, ['admin@test.com'])
+            messages.add_message(request, messages.SUCCESS, 'Check your email!')
+        else:
+            data['form_is_valid'] = False
+    else:
+        form = ContactForm()
+    data[''] = render_to_string(template_name='catalog/contact.html', context={'form': form}, request=request)
+    return JsonResponse(data)

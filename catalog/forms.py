@@ -1,9 +1,8 @@
-from django.core.exceptions import ValidationError
-from django.utils.translation import ugettext_lazy as _
-
-import datetime  # for checking renewal date range.
+import datetime
 
 from django import forms
+from django.core.exceptions import ValidationError
+from django.utils.translation import ugettext_lazy as _
 
 
 class RenewBookForm(forms.Form):
@@ -23,3 +22,9 @@ class RenewBookForm(forms.Form):
 
         # Remember to always return the cleaned data.
         return data
+
+
+class ContactForm(forms.Form):
+    subject = forms.CharField(max_length=100, required=True)
+    email = forms.EmailField(required=True)
+    message = forms.CharField(widget=forms.Textarea, required=True)
